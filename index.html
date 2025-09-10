@@ -1,18 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OGAds Offerwall</title>
-  <style>
-    body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: #f2f5ff; }
-    #offerwall-container { width: 100%; height: 100vh; display: flex; justify-content: center; align-items: center; }
-    iframe { width: 100%; height: 100%; border: none; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OGAds Offerwall</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; background: #f0f2f5; color: #222; }
+  header { background: #1446FF; color: #fff; padding: 12px 20px; font-weight: bold; text-align: center; }
+  main { padding: 20px; max-width: 1000px; margin: auto; }
+  #offerList { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .offer-card { background: #fff; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: transform 0.3s ease; }
+  .offer-card:hover { transform: scale(1.03); }
+  .offer-card img { width: 100%; height: 150px; object-fit: cover; border-radius: 10px; }
+  .offer-title { font-size: 16px; margin: 10px 0 6px 0; font-weight: bold; }
+  .offer-desc { font-size: 14px; color: #555; margin-bottom: 8px; }
+  .offer-payout { font-size: 14px; color: green; font-weight: bold; }
+  #loading { text-align: center; margin-top: 20px; font-size: 16px; }
+</style>
 </head>
 <body>
-  <div id="offerwall-container">
-    <iframe src="https://www.ogads.com/iframe.php?pubid=416956&cb=123456" allowfullscreen></iframe>
-  </div>
+<header>Complete Offers to Earn Rewards</header>
+<main>
+  <div id="offerList"></div>
+  <div id="loading">Loading offers...</div>
+</main>
+
+<script>
+const offerList = document.getElementById("offerList");
+const loading = document.getElementById("loading");
+
+// Your OGAds publisher ID
+const pubID = "416956";
+
+// OGAds API endpoint
+const offersUrl = `https://www.ogads.com/api/offers?pub_id=${pubID}&format=json`;
+
+// Function to create offer cards
+function createOfferCard(offer) {
+  const card = document.createElement("div");
+  card.className = "offer-card";
+
+  const img = document.createElement("img");
+  img.src = offer.picture || "";
+  card.appendChild(img);
+
+  const title = document.createElement("div");
+  title.className = "offer-title";
+  title.textContent = offer.name_short || offer.name;
+  card.appendChild(title);
+
+  const desc = document.createElement("div");
+  desc.className = "offer-desc";
+  desc.textContent = offer.adcopy || offer.description || "Complete this offer to earn rewards!";
+  card.appendChild(desc);
+
+  const payout = document.createElement("div");
+  payout.className = "offer-payout";
+  payout.textContent = `$${offer.payout || "0.00"}`;
+  card.appendChild(payout);
+
+  // Open offer in a new tab
+  card.onclick = () => {
+    window.open(offer.link, "_blank");
+  };
+
+  return card;
+}
+
+// Fetch offers from OGAds API
+fetch(offersUrl)
+  .then(res => res.json())
+  .then(data => {
+    loading.style.display = "none";
+    const offers = data.offers || [];
+    if (!offers.length) {
+      offerList.innerHTML = "<p>No offers available right now.</p>";
+      return;
+    }
+    offers.forEach(offer => {
+      const card = createOfferCard(offer);
+      offerList.appendChild(card);
+    });
+  })
+  .catch(err => {
+    console.error("Error fetching offers:", err);
+    loading.textContent = "Failed to load offers.";
+  });
+</script>
 </body>
 </html>

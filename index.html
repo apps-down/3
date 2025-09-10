@@ -5,49 +5,81 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OGAds Offerwall</title>
 <style>
-  body { font-family: Arial,sans-serif; background:#f2f5ff; color:#222; margin:0; padding:20px; }
-  #offerwall { max-width:900px; margin:auto; background:#fff; padding:20px; border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,0.1);}
-  #offerwall h2 { color:#1446FF; margin-bottom:16px; }
-  #offerList { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:20px; }
-  .offer-card { background:#f9fbff; border:2px solid #ccc; border-radius:12px; padding:16px; cursor:pointer; transition:0.3s; }
-  .offer-card:hover { transform:scale(1.03); box-shadow:0 0 14px rgba(0,0,0,0.25);}
+  body { font-family: Arial, sans-serif; background: #f2f5ff; margin: 0; padding: 20px; }
+  h1 { color: #1446FF; text-align: center; }
+  #offerList { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
+  .offer-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s ease; }
+  .offer-card:hover { transform: scale(1.03); }
+  .offer-title { font-weight: bold; margin-bottom: 8px; color: #1446FF; }
+  .offer-desc { font-size: 14px; color: #000; }
 </style>
 </head>
 <body>
-  <section id="offerwall">
-    <h2>Complete Offers</h2>
-    <div id="offerList">Loading offers...</div>
-  </section>
+<h1>Complete Offers</h1>
+<div id="offerList">Loading offers...</div>
 
 <script>
-const API_KEY = "34827|a2NfXQDl9EjEnyKUfAkFWNdjhlvT5TM4ExCnEpP985f9062f"; // your OGAds API key
-const OFFER_API = "https://lockerpreview.com/api/v2";
-const offerList = document.getElementById("offerList");
+const API_KEY = "34827|a2NfXQDl9EjEnyKUfAkFWNdjhlvT5TM4ExCnEpP985f9062f";
+const API_URL = "https://lockerpreview.com/api/v2";
+
+async function getVisitorIP() {
+  try {
+    const res = await fetch("https://api.ipify.org?format=json");
+    const data = await res.json();
+    return data.ip || "0.0.0.0";
+  } catch (e) {
+    return "0.0.0.0";
+  }
+}
 
 async function fetchOffers() {
-  try {
-    const ip = "127.0.0.1"; // placeholder; OGAds requires IP but we can use a dummy for client fetch
-    const ua = navigator.userAgent;
+  const offerList = document.getElementById("offerList");
+  offerList.innerHTML = "Loading offers...";
 
-    const resp = await fetch(`${OFFER_API}?ip=${encodeURIComponent(ip)}&user_agent=${encodeURIComponent(ua)}`, {
-      headers: { "Authorization": "Bearer " + API_KEY }
+  const ip = await getVisitorIP();
+  const userAgent = navigator.userAgent;
+
+  const bodyData = {
+    ip: ip,
+    user_agent: userAgent,
+    ctype: 7, // 1+CPI + 2+CPA + 4+PIN (adjust as needed)
+    max: 20
+  };
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + API_KEY
+      },
+      body: JSON.stringify(bodyData)
     });
 
-    const data = await resp.json();
+    const data = await res.json();
     const offers = data.offers || [];
-    if (!offers.length) { offerList.innerHTML = "<p>No offers available.</p>"; return; }
+    if (!offers.length) {
+      offerList.innerHTML = "<p>No offers available.</p>";
+      return;
+    }
 
     offerList.innerHTML = "";
-    offers.forEach((o, i) => {
+    offers.forEach((offer, idx) => {
       const card = document.createElement("div");
       card.className = "offer-card";
-      card.innerHTML = `<strong>${o.name || "Offer #" + (i+1)}</strong><p>${o.description || "Complete this offer to earn rewards!"}</p>`;
-      card.onclick = () => { if(o.url) window.open(o.url, "_blank"); };
+      card.innerHTML = `
+        <div class="offer-title">${offer.offer_name || offer.name || "Offer " + (idx+1)}</div>
+        <div class="offer-desc">${offer.description || offer.offer_desc || "Complete this offer to earn rewards"}</div>
+      `;
+      card.onclick = () => {
+        if (offer.offerlink) window.open(offer.offerlink, "_blank");
+      };
       offerList.appendChild(card);
     });
-  } catch(e) {
-    console.error(e);
-    offerList.innerHTML = "<p>Could not load offers.</p>";
+
+  } catch (err) {
+    console.error("Error fetching offers:", err);
+    offerList.innerHTML = "<p>Failed to load offers.</p>";
   }
 }
 

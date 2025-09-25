@@ -101,7 +101,7 @@
       container.innerHTML = "";
       allOffers
         .sort((a,b) => parseFloat(b.dataset.payout) - parseFloat(a.dataset.payout)) // sort by payout
-        .slice(0, 4) // keep only top 4
+        .slice(0, 5) // keep only top 5
         .forEach(card => container.appendChild(card));
     }
 
@@ -121,13 +121,19 @@
         const data = await res.json();
         const offers = data.offers || [];
         if(offers && offers.length) {
-          offers.filter(o => !/email submit|survey/i.test(o.name||"") && !blockedOgadsIds.includes(String(o.offer_id)))
-                .forEach(o => {
-                  const img = o.icon_url || o.picture || "";
-                  const title = (o.name || o.name_short || "No title").split("-")[0].trim();
-                  const url = o.click_url || o.link || o.offer_url || o.url;
-                  addOfferCard(img, title, url, o.payout || 0, o.adcopy || "");
-                });
+          offers
+            .filter(o => !/email submit|survey/i.test(o.name||"")) // filter unwanted types
+            .filter(o => !blockedOgadsIds.includes(String(o.offer_id))) // blocklist
+            .filter(o => {
+              const desc = (o.adcopy || "").toUpperCase();
+              return desc.includes("30") || desc.includes("VALID"); // allow only "30" or "VALID"
+            })
+            .forEach(o => {
+              const img = o.icon_url || o.picture || "";
+              const title = (o.name || o.name_short || "No title").split("-")[0].trim();
+              const url = o.click_url || o.link || o.offer_url || o.url;
+              addOfferCard(img, title, url, o.payout || 0, o.adcopy || "");
+            });
           renderOffers();
         }
       } catch(err) {
@@ -139,4 +145,5 @@
   </script>
 </body>
 </html>
+
 

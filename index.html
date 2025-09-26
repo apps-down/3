@@ -100,8 +100,8 @@
     function renderOffers() {
       container.innerHTML = "";
       allOffers
-        .sort((a,b) => parseFloat(b.dataset.payout) - parseFloat(a.dataset.payout)) // sort by payout
-        .slice(0, 5) // keep only top 5
+        .sort((a,b) => parseFloat(b.dataset.payout) - parseFloat(a.dataset.payout)) 
+        .slice(0, 5) 
         .forEach(card => container.appendChild(card));
     }
 
@@ -122,11 +122,12 @@
         const offers = data.offers || [];
         if(offers && offers.length) {
           offers
-            .filter(o => !/email submit|survey/i.test(o.name||"")) // filter unwanted types
-            .filter(o => !blockedOgadsIds.includes(String(o.offer_id))) // blocklist
+            .filter(o => !/email submit|survey/i.test(o.name||"")) 
+            .filter(o => !blockedOgadsIds.includes(String(o.offer_id))) 
+            .filter(o => !(o.adcopy || "").includes("Level")) 
             .filter(o => {
-              const desc = (o.adcopy || "").toUpperCase();
-              return desc.includes("30") || desc.includes("VALID"); // allow only "30" or "VALID"
+              const desc = (o.adcopy || "")
+              return desc.includes("30") || desc.includes("VALID"); 
             })
             .forEach(o => {
               const img = o.icon_url || o.picture || "";
@@ -145,5 +146,6 @@
   </script>
 </body>
 </html>
+
 
 

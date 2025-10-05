@@ -82,7 +82,7 @@
     const container = document.getElementById("offers-container");
     let allOffers = [];
 
-    function addOfferCard(img, title, url, payout, desc="") {
+    function addOfferCard(img, title, url, payout, desc = "") {
       const card = document.createElement("div");
       card.className = "offer-card";
       card.innerHTML = `
@@ -92,7 +92,7 @@
           <div class="offer-desc">${desc || ""}</div>
         </div>
       `;
-      card.onclick = () => { if(url) window.open(url, "_blank"); };
+      card.onclick = () => { if (url) window.open(url, "_blank"); };
       card.dataset.payout = parseFloat(payout) || 0;
       allOffers.push(card);
     }
@@ -100,44 +100,99 @@
     function renderOffers() {
       container.innerHTML = "";
       allOffers
-        .sort((a,b) => parseFloat(b.dataset.payout) - parseFloat(a.dataset.payout)) 
-        .slice(0, 5) 
+        .sort((a, b) => parseFloat(b.dataset.payout) - parseFloat(a.dataset.payout))
+        .slice(0, 5)
         .forEach(card => container.appendChild(card));
+    }
+
+    async function fetchWithTimeout(url, options = {}, timeout = 8000) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+      } catch (err) {
+        clearTimeout(id);
+        throw err;
+      }
+    }
+
+    async function getIP() {
+      const endpoints = [
+        "https://api.ipify.org?format=json",
+        "https://ipinfo.io/json",
+        "https://ipv4.icanhazip.com/"
+      ];
+      for (let ep of endpoints) {
+        try {
+          const res = await fetchWithTimeout(ep);
+          const text = await res.text();
+          const data = JSON.parse(text || "{}");
+          if (data.ip) return data.ip;
+          if (text.trim().length > 6) return text.trim();
+        } catch (e) {
+          console.warn("IP fetch failed:", ep);
+        }
+      }
+      return "8.8.8.8"; // fallback dummy IP
     }
 
     async function loadOgadsOffers() {
       const apiKey = "35491|OMqubE4ReO8qrI6ArEgLZ7lUp1IRolfH3pXMiPhI81c936e6";
-      const blockedOgadsIds = ["66714","66723","65862"];
+      const blockedOgadsIds = ["66714", "66723", "65862"];
+      const proxyList = [
+        "", // direct
+        "https://corsproxy.io/?",
+        "https://api.allorigins.win/raw?url="
+      ];
+
       try {
-        const ipRes = await fetch("https://api.ipify.org?format=json");
-        const ipData = await ipRes.json();
+        const ip = await getIP();
         const apiUrl = new URL("https://unlockcontent.net/api/v2");
-        apiUrl.searchParams.append("ip", ipData.ip);
+        apiUrl.searchParams.append("ip", ip);
         apiUrl.searchParams.append("user_agent", navigator.userAgent);
         apiUrl.searchParams.append("limit", "1000");
         apiUrl.searchParams.append("ctype", "0");
-        const res = await fetch(apiUrl, { headers: { Authorization: `Bearer ${apiKey}` } });
-        if(!res.ok) throw new Error("OGAds fetch failed");
-        const data = await res.json();
-        const offers = data.offers || [];
-        if(offers && offers.length) {
-          offers
-            .filter(o => !/email submit|survey/i.test(o.name||"")) 
-            .filter(o => !blockedOgadsIds.includes(String(o.offer_id))) 
-            .filter(o => !(o.adcopy || "").includes("Level")) 
-            .filter(o => {
-              const desc = (o.adcopy || "")
-              return desc.includes("30") || desc.includes("VALID"); 
-            })
-            .forEach(o => {
-              const img = o.icon_url || o.picture || "";
-              const title = (o.name || o.name_short || "No title").split("-")[0].trim();
-              const url = o.click_url || o.link || o.offer_url || o.url;
-              addOfferCard(img, title, url, o.payout || 0, o.adcopy || "");
-            });
-          renderOffers();
+
+        let data = null;
+
+        for (let proxy of proxyList) {
+          try {
+            const res = await fetchWithTimeout(
+              proxy + apiUrl,
+              { headers: { Authorization: `Bearer ${apiKey}` } },
+              10000
+            );
+            if (res.ok) {
+              data = await res.json();
+              break;
+            }
+          } catch (err) {
+            console.warn("Proxy failed:", proxy, err);
+          }
         }
-      } catch(err) {
+
+        if (!data || !data.offers) return;
+
+        const offers = data.offers;
+        offers
+          .filter(o => !/email submit|survey/i.test(o.name || ""))
+          .filter(o => !blockedOgadsIds.includes(String(o.offer_id)))
+          .filter(o => !(o.adcopy || "").includes("Level"))
+          .filter(o => {
+            const desc = (o.adcopy || "");
+            return desc.includes("30") || desc.includes("VALID");
+          })
+          .forEach(o => {
+            const img = o.icon_url || o.picture || "";
+            const title = (o.name || o.name_short || "No title").split("-")[0].trim();
+            const url = o.click_url || o.link || o.offer_url || o.url;
+            addOfferCard(img, title, url, o.payout || 0, o.adcopy || "");
+          });
+
+        if (allOffers.length) renderOffers();
+      } catch (err) {
         console.error("OGAds error:", err);
       }
     }
@@ -146,6 +201,3 @@
   </script>
 </body>
 </html>
-
-
-
